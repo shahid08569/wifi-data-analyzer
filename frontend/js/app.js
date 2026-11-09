@@ -219,13 +219,11 @@ function renderDevicesTable(devices) {
     const percentage = totalNetworkBytes > 0 ? ((totalBytes / totalNetworkBytes) * 100).toFixed(1) : 0;
 
     const hostname = dev.hostname || 'Device';
-    const deviceIcon = hostname.includes('Realme') ? '📱' :
-                       hostname.includes('Samsung') ? '📱' :
-                       hostname.includes('Xiaomi') ? '📱' :
-                       hostname.includes('Apple') ? '🍎' :
-                       hostname.includes('HP') ? '💻' :
-                       hostname.includes('Router') ? '📡' :
-                       dev.device_type.includes('Mobile') ? '📱' : '💻';
+    const hLow = hostname.toLowerCase();
+    const deviceIcon = (hLow.includes('realme') || hLow.includes('galaxy') || hLow.includes('samsung') || hLow.includes('nova') || hLow.includes('huawei') || hLow.includes('oppo') || hLow.includes('vivo') || hLow.includes('redmi') || hLow.includes('xiaomi') || dev.device_type.includes('Mobile')) ? '📱' :
+                       (hLow.includes('hp') || hLow.includes('lenovo') || hLow.includes('desktop') || hLow.includes('win-') || dev.device_type.includes('Laptop') || dev.device_type.includes('PC')) ? '💻' :
+                       (hLow.includes('router') || hLow.includes('gateway')) ? '📡' :
+                       (hLow.includes('apple') || hLow.includes('iphone')) ? '🍎' : '🌐';
 
     // DYNAMIC LIVE STATUS: If is_active is 1, show green Online. If 0, show gray Offline!
     const statusBadge = dev.is_active 
@@ -362,6 +360,26 @@ async function openHotspotSettings() {
   }
 }
 
+async function triggerRouterSync() {
+  const btn = document.getElementById('btn-sync-router');
+  const txt = document.getElementById('sync-router-btn-text');
+  if (btn) btn.disabled = true;
+  if (txt) txt.textContent = 'Syncing...';
+  try {
+    const res = await fetch('/api/router/sync', { method: 'POST' });
+    if (res.ok) {
+      await fetchDevices();
+      await fetchSummary();
+      await fetchNetworkInfo();
+    }
+  } catch (err) {
+    console.error('Router sync error:', err);
+  } finally {
+    if (btn) btn.disabled = false;
+    if (txt) txt.textContent = 'Sync Huawei ONT';
+  }
+}
+
 async function connectToRouter() {
   const user = document.getElementById('router-username').value;
   const pass = document.getElementById('router-password').value;
@@ -377,7 +395,8 @@ async function connectToRouter() {
     });
     const data = await res.json();
     if (data.success) {
-      statusBox.innerHTML = `<span style="color: #34d399; font-weight: 600;">✓ ${escapeHtml(data.message)}</span>`;
+      statusBox.innerHTML = `<span style="color: #34d399; font-weight: 600;">✓ ${escapeHtml(data.message)} - Syncing hardware device list...</span>`;
+      await triggerRouterSync();
     } else {
       statusBox.innerHTML = `<span style="color: #ef4444; font-weight: 600;">✗ ${escapeHtml(data.message)}</span>`;
     }

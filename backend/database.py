@@ -12,7 +12,8 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wifi_analyze
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -84,15 +85,26 @@ def init_db():
 
 def upsert_device(mac: str, ip: str, hostname: str = None, vendor: str = None,
                   device_type: str = "Unknown", is_hotspot_client: int = 0, is_active: int = 1):
+    clean_mac = mac.upper().replace("-", ":")
     now = datetime.now().isoformat()
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT first_seen, hostname, vendor FROM devices WHERE mac = ?", (mac,))
+    cursor.execute("SELECT first_seen, hostname, vendor FROM devices WHERE mac = ?", (clean_mac,))
     row = cursor.fetchone()
 
+    generic_names = ["Realme Smartphone", "Windows PC", "Xiaomi / Redmi Phone", "Samsung Galaxy", "Apple iPhone", "Unknown"]
+
     if row:
-        final_hostname = hostname if hostname and hostname != "Unknown" else row["hostname"]
+        existing_host = row["hostname"] or ""
+        # Keep authentic router names if incoming is generic
+        if hostname and not any(hostname.startswith(g) for g in generic_names):
+            final_hostname = hostname
+        elif existing_host and not any(existing_host.startswith(g) for g in generic_names):
+            final_hostname = existing_host
+        else:
+            final_hostname = hostname or existing_host or "Device"
+
         final_vendor = vendor if vendor and vendor != "Unknown" else row["vendor"]
         cursor.execute("""
             UPDATE devices 
@@ -100,12 +112,12 @@ def upsert_device(mac: str, ip: str, hostname: str = None, vendor: str = None,
                 is_hotspot_client = MAX(is_hotspot_client, ?), 
                 is_active = ?, last_seen = ?
             WHERE mac = ?
-        """, (ip, final_hostname, final_vendor, device_type, is_hotspot_client, is_active, now, mac))
+        """, (ip, final_hostname, final_vendor, device_type, is_hotspot_client, is_active, now, clean_mac))
     else:
         cursor.execute("""
             INSERT INTO devices (mac, ip, hostname, vendor, device_type, is_hotspot_client, is_active, first_seen, last_seen)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (mac, ip, hostname or "Unknown", vendor or "Unknown", device_type, is_hotspot_client, is_active, now, now))
+        """, (clean_mac, ip, hostname or "Unknown", vendor or "Unknown", device_type, is_hotspot_client, is_active, now, now))
 
     conn.commit()
     conn.close()
@@ -120,13 +132,14 @@ def set_all_devices_inactive():
 
 
 def log_traffic(mac: str, ip: str, bytes_down: int, bytes_up: int, is_hotspot: int = 0):
+    clean_mac = mac.upper().replace("-", ":")
     now = datetime.now().isoformat()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO traffic_logs (mac, ip, timestamp, bytes_down, bytes_up, is_hotspot)
         VALUES (?, ?, ?, ?, ?, ?)
-    """, (mac, ip, now, bytes_down, bytes_up, is_hotspot))
+    """, (clean_mac, ip, now, bytes_down, bytes_up, is_hotspot))
     conn.commit()
     conn.close()
 

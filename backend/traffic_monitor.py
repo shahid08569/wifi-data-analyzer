@@ -1,7 +1,7 @@
 """
 WiFi & Hotspot Data Analyzer - Traffic Monitor
 Runs in the background, tracks packet flows, measures per-device data consumption,
-and updates real-time online/offline states dynamically.
+synchronizes with Huawei GPON router gateway, and updates real-time online/offline states dynamically.
 """
 
 import time
@@ -11,6 +11,7 @@ from typing import Dict, Any
 from database import upsert_device, log_traffic, init_db, set_all_devices_inactive
 from network_scanner import scan_devices, get_local_network_info
 from hotspot_service import hotspot_service
+from router_service import router_service
 
 
 class TrafficMonitor:
@@ -20,12 +21,18 @@ class TrafficMonitor:
         self.thread = None
         self.last_adapter_stats: Dict[str, Any] = {}
         self.current_speed = {"down_kbps": 0.0, "up_kbps": 0.0}
+        self.cycle_count = 0
 
     def start(self):
         if self.running:
             return
         self.running = True
         init_db()
+        # Initial sync with router on startup
+        try:
+            router_service.sync_to_database()
+        except Exception:
+            pass
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
         print("Traffic Monitor background worker started.")
@@ -36,19 +43,25 @@ class TrafficMonitor:
     def _run_loop(self):
         while self.running:
             try:
-                # 1. Check Hotspot state
+                self.cycle_count += 1
+
+                # 1. Periodic Huawei Router Gateway sync (every 25 seconds = every 8 cycles)
+                if self.cycle_count % 8 == 1:
+                    try:
+                        router_service.sync_to_database()
+                    except Exception as e:
+                        print("Router sync notice:", e)
+
+                # 2. Check Windows Hotspot state
                 hs_status = hotspot_service.check_hotspot_status()
                 hotspot_active = hs_status.get("is_active", False)
                 hotspot_clients = {
-                    c.get("Mac", "").upper().replace(":", "-"): c.get("Hostname", "") 
+                    c.get("Mac", "").upper().replace("-", ":"): c.get("Hostname", "") 
                     for c in hs_status.get("clients", [])
                 }
 
-                # 2. Live Layer-2 device discovery (only active responding devices are returned)
+                # 3. Live Layer-2 device discovery
                 active_devices = scan_devices()
-
-                # 3. Mark all devices in database inactive first for real-time online/offline accuracy
-                set_all_devices_inactive()
 
                 # 4. Measure adapter traffic delta
                 wifi_down_delta = 0
@@ -56,7 +69,7 @@ class TrafficMonitor:
                 io_counters = psutil.net_io_counters(pernic=True)
 
                 for iface, stats in io_counters.items():
-                    if "wi-fi" in iface.lower() or "wireless" in iface.lower() or "wlan" in iface.lower():
+                    if any(k in iface.lower() for k in ["wi-fi", "wireless", "wlan"]):
                         prev = self.last_adapter_stats.get(iface)
                         if prev:
                             if stats.bytes_recv >= prev.bytes_recv:
@@ -73,14 +86,13 @@ class TrafficMonitor:
                 count = len(active_devices)
 
                 for dev in active_devices:
-                    mac = dev["mac"]
+                    mac = dev["mac"].upper().replace("-", ":")
                     ip = dev["ip"]
                     vendor = dev["vendor"]
                     hostname = dev["hostname"]
                     dev_type = dev["device_type"]
                     is_hs = 1 if mac in hotspot_clients or (hotspot_active and dev.get("is_hotspot", False)) else 0
 
-                    # Mark is_active = 1 since it actively responded
                     upsert_device(
                         mac=mac,
                         ip=ip,
@@ -91,15 +103,15 @@ class TrafficMonitor:
                         is_active=1
                     )
 
-                    # Attribute live delta
+                    # Distribute real-time live delta to active devices
                     if (wifi_down_delta > 0 or wifi_up_delta > 0) and count > 0:
-                        dev_down = int(wifi_down_delta / count)
-                        dev_up = int(wifi_up_delta / count)
+                        dev_down = wifi_down_delta // count
+                        dev_up = wifi_up_delta // count
                         if dev_down > 0 or dev_up > 0:
                             log_traffic(mac=mac, ip=ip, bytes_down=dev_down, bytes_up=dev_up, is_hotspot=is_hs)
 
             except Exception as e:
-                pass
+                print("Monitor loop exception:", e)
 
             time.sleep(self.interval_sec)
 

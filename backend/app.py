@@ -121,10 +121,21 @@ def router_login(data: dict = Body(...)):
     return router_service.login(username, password)
 
 
+@app.post("/api/router/sync")
+def sync_router_hardware():
+    """Directly syncs official hostnames, active stations, and Wi-Fi data counters from Huawei GPON ONT."""
+    return router_service.sync_to_database()
+
+
 @app.post("/api/scan")
 def trigger_scan():
-    """Performs real-time Layer-2 ARP sweep. Only active devices are marked online."""
-    set_all_devices_inactive()
+    """Performs real-time Huawei Router sync + Layer-2 ARP sweep."""
+    router_res = {}
+    try:
+        router_res = router_service.sync_to_database()
+    except Exception as e:
+        router_res = {"error": str(e)}
+
     discovered = scan_devices()
     for dev in discovered:
         upsert_device(
@@ -136,7 +147,12 @@ def trigger_scan():
             is_hotspot_client=0,
             is_active=1
         )
-    return {"status": "scan_complete", "devices_found": len(discovered), "devices": discovered}
+    return {
+        "status": "scan_complete",
+        "devices_found": len(discovered),
+        "router_sync": router_res,
+        "devices": discovered
+    }
 
 
 @app.post("/api/hotspot/open-settings")

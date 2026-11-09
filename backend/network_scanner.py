@@ -186,8 +186,8 @@ def query_arp_ip(ip: str):
         mac_len = ctypes.c_ulong(6)
         res = send_arp(dest_ip, 0, ctypes.byref(mac_addr), ctypes.byref(mac_len))
         if res == 0:
-            mac_str = '-'.join(f'{b:02X}' for b in mac_addr[:6])
-            if mac_str not in ["00-00-00-00-00-00", "FF-FF-FF-FF-FF-FF"]:
+            mac_str = ':'.join(f'{b:02X}' for b in mac_addr[:6])
+            if mac_str not in ["00:00:00:00:00:00", "FF:FF:FF:FF:FF:FF"]:
                 return ip, mac_str
     except Exception:
         pass
@@ -228,8 +228,8 @@ def scan_devices() -> List[Dict[str, Any]]:
             m = re.match(r"^\s*(\d+\cdot\d+\cdot\d+\cdot\d+)\s+([0-9a-fA-F-]+)\s+(\w+)", line)
             if m:
                 ip, raw_mac, _ = m.groups()
-                mac = raw_mac.upper().replace(":", "-")
-                if not (ip.startswith("224.") or ip.startswith("239.") or ip.endswith(".255") or mac == "FF-FF-FF-FF-FF-FF"):
+                mac = raw_mac.upper().replace("-", ":")
+                if not (ip.startswith("224.") or ip.startswith("239.") or ip.endswith(".255") or mac == "FF:FF:FF:FF:FF:FF"):
                     if mac not in seen_macs:
                         seen_macs.add(mac)
                         info = identify_device(mac, ip, gateway, local_ip)
