@@ -4,6 +4,7 @@ FastAPI server serving REST API and Web Dashboard.
 """
 
 import os
+import subprocess
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +16,9 @@ from database import (
     get_devices_with_usage,
     get_summary_statistics,
     get_hotspot_sessions_list,
-    log_traffic
+    log_traffic,
+    upsert_device,
+    start_or_update_hotspot_session
 )
 from network_scanner import get_local_network_info, scan_devices
 from hotspot_service import hotspot_service
@@ -24,11 +27,9 @@ from traffic_monitor import monitor
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize DB and start background monitoring worker
     init_db()
     monitor.start()
     yield
-    # Shutdown: Stop monitor
     monitor.stop()
 
 
@@ -67,13 +68,12 @@ def get_network_info():
 
 @app.get("/api/speed")
 def get_live_speed():
-    """Returns real-time network speed in KB/s."""
     return monitor.current_speed
 
 
 @app.get("/api/devices")
 def get_devices(
-    filter_type: str = Query("30days", alias="filter", description="Filter: today, 7days, 30days, all, custom"),
+    filter_type: str = Query("30days", alias="filter", description="Filter: 1hour, today, 7days, 30days, all, custom"),
     start_date: str = Query(None, description="YYYY-MM-DD for custom filter"),
     end_date: str = Query(None, description="YYYY-MM-DD for custom filter")
 ):
@@ -87,7 +87,7 @@ def get_devices(
 
 @app.get("/api/summary")
 def get_summary(
-    filter_type: str = Query("30days", alias="filter", description="Filter: today, 7days, 30days, all, custom"),
+    filter_type: str = Query("30days", alias="filter", description="Filter: 1hour, today, 7days, 30days, all, custom"),
     start_date: str = Query(None, description="YYYY-MM-DD for custom filter"),
     end_date: str = Query(None, description="YYYY-MM-DD for custom filter")
 ):
@@ -107,21 +107,55 @@ def get_hotspot_details():
 
 @app.post("/api/scan")
 def trigger_scan():
+    """Performs deep full-subnet Layer-2 ARP sweep across all 254 IPs."""
     discovered = scan_devices()
+    for dev in discovered:
+        upsert_device(
+            mac=dev["mac"],
+            ip=dev["ip"],
+            hostname=dev["hostname"],
+            vendor=dev["vendor"],
+            device_type=dev["device_type"],
+            is_hotspot_client=0,
+            is_active=dev["is_active"]
+        )
     return {"status": "scan_complete", "devices_found": len(discovered), "devices": discovered}
 
 
 @app.post("/api/simulate")
 def simulate_traffic_burst():
-    """Simulates a live data transfer burst across active devices for instant verification."""
     devices = get_devices_with_usage("30days")
     if devices:
         import random
         for dev in devices:
-            down_burst = random.randint(1500000, 8500000)  # 1.5 - 8.5 MB
-            up_burst = random.randint(500000, 2500000)     # 0.5 - 2.5 MB
+            down_burst = random.randint(1500000, 8500000)
+            up_burst = random.randint(500000, 2500000)
             log_traffic(dev["mac"], dev["ip"], down_burst, up_burst, is_hotspot=0)
     return {"status": "simulated_burst_logged", "devices_affected": len(devices)}
+
+
+@app.post("/api/hotspot/open-settings")
+def open_windows_hotspot_settings():
+    """Opens Windows Mobile Hotspot settings page on the host machine."""
+    try:
+        subprocess.run(["cmd", "/c", "start", "ms-settings:network-mobilehotspot"], shell=True)
+        return {"status": "opened_settings"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/hotspot/simulate-session")
+def simulate_hotspot_session():
+    """Generates an active or completed hotspot test session for immediate demonstration."""
+    import random
+    from datetime import datetime, timedelta
+    start_or_update_hotspot_session(
+        is_on=True, 
+        current_clients=random.randint(2, 4), 
+        down_delta=random.randint(45000000, 150000000), 
+        up_delta=random.randint(12000000, 45000000)
+    )
+    return {"status": "hotspot_session_updated"}
 
 
 if os.path.exists(FRONTEND_DIR):

@@ -11,9 +11,9 @@ let totalNetworkBytes = 0;
 document.addEventListener('DOMContentLoaded', () => {
   setupFilterPills();
   loadAllData();
-  // Poll data every 3 seconds for real-time live dynamic updates
+  // Live dynamic updates every 3 seconds
   setInterval(loadAllData, 3000);
-  // Poll live speed every 1.5 seconds
+  // Live speed meter every 1.5 seconds
   setInterval(fetchLiveSpeed, 1500);
 });
 
@@ -128,7 +128,7 @@ async function fetchNetworkInfo() {
     const hsText = document.getElementById('hotspot-status-text');
     if (data.hotspot && data.hotspot.is_active) {
       hsDot.className = 'hotspot-dot active';
-      hsText.textContent = `ON (${data.hotspot.client_count} client${data.hotspot.client_count === 1 ? '' : 's'})`;
+      hsText.textContent = `ON (${data.hotspot.client_count} device${data.hotspot.client_count === 1 ? '' : 's'})`;
       hsText.style.color = '#fbbf24';
     } else {
       hsDot.className = 'hotspot-dot';
@@ -195,11 +195,11 @@ function renderDevicesTable(devices) {
   const countLabel = document.getElementById('devices-count-label');
 
   if (countLabel) {
-    countLabel.textContent = `Showing ${devices.length} of ${allDevices.length} devices`;
+    countLabel.textContent = `Showing ${devices.length} of ${allDevices.length} discovered devices`;
   }
 
   if (!devices || devices.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="loading-cell">No devices found. Click "Refresh Scan" above to discover active network devices.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="loading-cell">No devices found. Click "Full Network Scan" above to discover active subnet hosts.</td></tr>`;
     return;
   }
 
@@ -270,23 +270,17 @@ async function fetchHotspot() {
     const circle = document.getElementById('hs-status-circle');
     const title = document.getElementById('hs-live-title');
     const sub = document.getElementById('hs-live-subtitle');
-    const clients = document.getElementById('hs-current-clients');
-    const adapter = document.getElementById('hs-adapter-name');
 
     if (curr.is_active) {
       circle.className = 'hs-indicator on';
-      title.textContent = 'Mobile Hotspot: ACTIVE';
+      title.textContent = 'Mobile Hotspot: ACTIVE (Turned ON)';
       title.style.color = '#fbbf24';
-      sub.textContent = 'Devices are actively connected and routing traffic through this laptop.';
-      clients.textContent = curr.client_count || 0;
-      adapter.textContent = curr.adapter_name || 'Wi-Fi Direct Virtual';
+      sub.textContent = `${curr.client_count || 0} device(s) currently connected to your laptop's hotspot.`;
     } else {
       circle.className = 'hs-indicator';
-      title.textContent = 'Mobile Hotspot: Inactive';
+      title.textContent = 'Mobile Hotspot: Inactive (Switched OFF)';
       title.style.color = 'var(--text-main)';
-      sub.textContent = 'Windows Mobile Hotspot is currently turned off in Windows Settings.';
-      clients.textContent = '0';
-      adapter.textContent = 'None';
+      sub.textContent = 'Windows Mobile Hotspot is currently switched off in Windows Settings.';
     }
 
     renderHotspotSessions(sessions);
@@ -298,7 +292,7 @@ async function fetchHotspot() {
 function renderHotspotSessions(sessions) {
   const tbody = document.getElementById('hotspot-table-body');
   if (!sessions || sessions.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="loading-cell">No hotspot sessions recorded yet. Turn on Windows Mobile Hotspot to record sessions.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="loading-cell">No hotspot sessions recorded yet. Turn on Windows Mobile Hotspot or click "Log Demo Hotspot Session" above.</td></tr>`;
     return;
   }
 
@@ -307,7 +301,7 @@ function renderHotspotSessions(sessions) {
     const startTime = new Date(s.started_at).toLocaleString();
     const endTime = s.ended_at ? new Date(s.ended_at).toLocaleString() : 'In Progress';
     const statusBadge = s.status === 'active' 
-      ? `<span class="badge-online">Active</span>`
+      ? `<span class="badge-online">Active Now</span>`
       : `<span class="badge-offline">Completed</span>`;
 
     html += `
@@ -329,9 +323,9 @@ function renderHotspotSessions(sessions) {
 
 async function triggerManualScan() {
   const btn = document.getElementById('btn-scan');
+  const btnText = document.getElementById('scan-btn-text');
   btn.disabled = true;
-  const originalHtml = btn.innerHTML;
-  btn.innerHTML = `<span>Scanning...</span>`;
+  btnText.textContent = 'Sweeping Subnet (1-254)...';
 
   try {
     await fetch('/api/scan', { method: 'POST' });
@@ -340,7 +334,7 @@ async function triggerManualScan() {
     console.error('Scan error:', err);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = originalHtml;
+    btnText.textContent = 'Full Network Scan';
   }
 }
 
@@ -350,6 +344,23 @@ async function simulateTestBurst() {
     await loadAllData();
   } catch (err) {
     console.error('Simulate error:', err);
+  }
+}
+
+async function openHotspotSettings() {
+  try {
+    await fetch('/api/hotspot/open-settings', { method: 'POST' });
+  } catch (err) {
+    console.error('Open settings error:', err);
+  }
+}
+
+async function simulateHotspotSession() {
+  try {
+    await fetch('/api/hotspot/simulate-session', { method: 'POST' });
+    await loadAllData();
+  } catch (err) {
+    console.error('Hotspot simulate error:', err);
   }
 }
 

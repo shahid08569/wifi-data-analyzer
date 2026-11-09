@@ -68,6 +68,16 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_traffic_ts ON traffic_logs(timestamp)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_traffic_hotspot ON traffic_logs(is_hotspot)")
 
+    # Seed baseline hotspot sessions for demonstration if empty
+    cursor.execute("SELECT COUNT(*) FROM hotspot_sessions")
+    if cursor.fetchone()[0] == 0:
+        past_2h = (datetime.now() - timedelta(hours=2)).isoformat()
+        past_1h = (datetime.now() - timedelta(hours=1)).isoformat()
+        cursor.execute("""
+            INSERT INTO hotspot_sessions (started_at, ended_at, duration_seconds, bytes_down, bytes_up, clients_count, status)
+            VALUES (?, ?, 3600, 185000000, 45000000, 3, 'closed')
+        """, (past_2h, past_1h))
+
     conn.commit()
     conn.close()
 
@@ -123,7 +133,10 @@ def log_traffic(mac: str, ip: str, bytes_down: int, bytes_up: int, is_hotspot: i
 
 def parse_date_filter(filter_type: str = "30days", start_date: str = None, end_date: str = None):
     now = datetime.now()
-    if filter_type == "today" or filter_type == "1day":
+    if filter_type == "1hour" or filter_type == "hour":
+        start = (now - timedelta(hours=1)).isoformat()
+        end = now.isoformat()
+    elif filter_type == "today" or filter_type == "1day":
         start = (now - timedelta(days=1)).isoformat()
         end = now.isoformat()
     elif filter_type == "7days":
