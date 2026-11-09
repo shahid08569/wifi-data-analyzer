@@ -67,7 +67,7 @@ Double-click `start.bat` in the project folder.
 
 ### Method 2: Manual Terminal
 ```bash
-cd C:\Projects\wifi-data-analyzer\backend
+cd F:\Projects\wifi-data-analyzer\backend
 py app.py
 ```
 
