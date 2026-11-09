@@ -11,9 +11,9 @@ let totalNetworkBytes = 0;
 document.addEventListener('DOMContentLoaded', () => {
   setupFilterPills();
   loadAllData();
-  // Live dynamic updates every 3 seconds
+  // Live dynamic polling every 3 seconds
   setInterval(loadAllData, 3000);
-  // Live speed meter every 1.5 seconds
+  // Live speedometer polling every 1.5 seconds
   setInterval(fetchLiveSpeed, 1500);
 });
 
@@ -128,7 +128,7 @@ async function fetchNetworkInfo() {
     const hsText = document.getElementById('hotspot-status-text');
     if (data.hotspot && data.hotspot.is_active) {
       hsDot.className = 'hotspot-dot active';
-      hsText.textContent = `ON (${data.hotspot.client_count} device${data.hotspot.client_count === 1 ? '' : 's'})`;
+      hsText.textContent = `ON (${data.hotspot.client_count} client${data.hotspot.client_count === 1 ? '' : 's'})`;
       hsText.style.color = '#fbbf24';
     } else {
       hsDot.className = 'hotspot-dot';
@@ -210,9 +210,14 @@ function renderDevicesTable(devices) {
     const upBytes = dev.bytes_up || 0;
     const percentage = totalNetworkBytes > 0 ? ((totalBytes / totalNetworkBytes) * 100).toFixed(1) : 0;
 
-    const deviceIcon = dev.device_type.includes('Mobile') ? '📱' :
-                       dev.device_type.includes('Laptop') ? '💻' :
-                       dev.device_type.includes('Gateway') ? '📡' : '🌐';
+    const hostname = dev.hostname || 'Device';
+    const deviceIcon = hostname.includes('Realme') ? '📱' :
+                       hostname.includes('Samsung') ? '📱' :
+                       hostname.includes('Xiaomi') ? '📱' :
+                       hostname.includes('Apple') ? '🍎' :
+                       hostname.includes('HP') ? '💻' :
+                       hostname.includes('Router') ? '📡' :
+                       dev.device_type.includes('Mobile') ? '📱' : '💻';
 
     const statusBadge = dev.is_active 
       ? `<span class="badge-online"><span class="pulse-dot"></span> Online</span>`
@@ -225,23 +230,23 @@ function renderDevicesTable(devices) {
     html += `
       <tr>
         <td>
-          <div style="font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+          <div style="font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.45rem;">
             <span>${deviceIcon}</span>
-            <span>${escapeHtml(dev.hostname)}</span>
+            <span style="color: #f8fafc;">${escapeHtml(hostname)}</span>
             ${hotspotPill}
           </div>
-          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">
-            Type: ${escapeHtml(dev.device_type)}
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+            ${escapeHtml(dev.device_type)} &bull; IP: ${escapeHtml(dev.ip)}
           </div>
         </td>
         <td class="mono-cell">${escapeHtml(dev.ip)}</td>
         <td class="mono-cell">${escapeHtml(dev.mac)}</td>
-        <td>${escapeHtml(dev.vendor)}</td>
+        <td><strong style="color: #38bdf8;">${escapeHtml(dev.vendor)}</strong></td>
         <td>${statusBadge}</td>
         <td>${formatBytes(downBytes)}</td>
         <td>${formatBytes(upBytes)}</td>
         <td>
-          <strong style="font-size: 0.95rem; color: var(--primary);">${formatBytes(totalBytes)}</strong>
+          <strong style="font-size: 1rem; color: #f8fafc;">${formatBytes(totalBytes)}</strong>
         </td>
         <td>
           <div class="usage-bar-wrapper">
@@ -292,7 +297,7 @@ async function fetchHotspot() {
 function renderHotspotSessions(sessions) {
   const tbody = document.getElementById('hotspot-table-body');
   if (!sessions || sessions.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="loading-cell">No hotspot sessions recorded yet. Turn on Windows Mobile Hotspot or click "Log Demo Hotspot Session" above.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="loading-cell">No hotspot sessions recorded yet. Turn on Windows Mobile Hotspot in Windows Settings to record.</td></tr>`;
     return;
   }
 
@@ -338,29 +343,11 @@ async function triggerManualScan() {
   }
 }
 
-async function simulateTestBurst() {
-  try {
-    await fetch('/api/simulate', { method: 'POST' });
-    await loadAllData();
-  } catch (err) {
-    console.error('Simulate error:', err);
-  }
-}
-
 async function openHotspotSettings() {
   try {
     await fetch('/api/hotspot/open-settings', { method: 'POST' });
   } catch (err) {
     console.error('Open settings error:', err);
-  }
-}
-
-async function simulateHotspotSession() {
-  try {
-    await fetch('/api/hotspot/simulate-session', { method: 'POST' });
-    await loadAllData();
-  } catch (err) {
-    console.error('Hotspot simulate error:', err);
   }
 }
 

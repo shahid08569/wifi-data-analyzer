@@ -24,7 +24,7 @@
         </div>
         <div class="brand-text">
           <h1>WiFi & Hotspot Data Analyzer</h1>
-          <p class="subtitle">Real-time Layer-2 Device Telemetry & Bandwidth Tracker</p>
+          <p class="subtitle">Real-time Connected Devices & Bandwidth Monitor</p>
         </div>
       </div>
 
@@ -44,9 +44,6 @@
           <span class="badge-label">Hotspot:</span>
           <strong id="hotspot-status-text">OFF</strong>
         </div>
-        <button class="btn btn-secondary" onclick="simulateTestBurst()" title="Simulate a live data transfer burst">
-          ⚡ Test Burst
-        </button>
         <button class="btn btn-primary" id="btn-scan" onclick="triggerManualScan()">
           <svg class="spin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
@@ -108,7 +105,7 @@
 
       <div class="metric-card card-emerald">
         <div class="metric-top">
-          <span class="metric-title">Discovered Devices</span>
+          <span class="metric-title">Active Devices</span>
           <div class="metric-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
@@ -190,7 +187,7 @@
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
-              <input type="text" id="device-search" placeholder="Search by name, IP, MAC or vendor..." oninput="filterDevicesList()">
+              <input type="text" id="device-search" placeholder="Search device, brand (Realme, Samsung, HP), IP or MAC..." oninput="filterDevicesList()">
             </div>
             <div class="toolbar-info">
               <span id="devices-count-label">Loading devices...</span>
@@ -200,14 +197,14 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>Device Name</th>
+                <th>Device Name & Brand</th>
                 <th>IP Address</th>
                 <th>MAC Address</th>
-                <th>Manufacturer / Type</th>
+                <th>Hardware / Vendor</th>
                 <th>Status</th>
                 <th>Download</th>
                 <th>Upload</th>
-                <th>Total Data</th>
+                <th>Total Data Used</th>
                 <th>Traffic Share</th>
               </tr>
             </thead>
@@ -233,9 +230,6 @@
           <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
             <button class="btn btn-primary" onclick="openHotspotSettings()">
               ⚙️ Open Windows Hotspot Settings
-            </button>
-            <button class="btn btn-secondary" onclick="simulateHotspotSession()">
-              ⚡ Log Demo Hotspot Session
             </button>
           </div>
         </div>
