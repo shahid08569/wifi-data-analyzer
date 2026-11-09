@@ -1,12 +1,12 @@
 """
 WiFi & Hotspot Data Analyzer - Backend Application API
-FastAPI server serving REST API and Web Dashboard.
+FastAPI server serving REST API, Huawei Router Gateway, and Web Dashboard.
 """
 
 import os
 import subprocess
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -18,10 +18,12 @@ from database import (
     get_hotspot_sessions_list,
     log_traffic,
     upsert_device,
-    start_or_update_hotspot_session
+    start_or_update_hotspot_session,
+    set_all_devices_inactive
 )
 from network_scanner import get_local_network_info, scan_devices
 from hotspot_service import hotspot_service
+from router_service import router_service
 from traffic_monitor import monitor
 
 
@@ -60,9 +62,11 @@ def health_check():
 def get_network_info():
     info = get_local_network_info()
     hs = hotspot_service.check_hotspot_status()
+    router_status = router_service.get_status()
     return {
         "network": info,
-        "hotspot": hs
+        "hotspot": hs,
+        "router": router_status
     }
 
 
@@ -105,9 +109,22 @@ def get_hotspot_details():
     }
 
 
+@app.get("/api/router")
+def get_router_status():
+    return router_service.get_status()
+
+
+@app.post("/api/router/login")
+def router_login(data: dict = Body(...)):
+    username = data.get("username", "admin")
+    password = data.get("password", "")
+    return router_service.login(username, password)
+
+
 @app.post("/api/scan")
 def trigger_scan():
-    """Performs deep full-subnet Layer-2 ARP sweep across all 254 IPs."""
+    """Performs real-time Layer-2 ARP sweep. Only active devices are marked online."""
+    set_all_devices_inactive()
     discovered = scan_devices()
     for dev in discovered:
         upsert_device(
@@ -117,45 +134,18 @@ def trigger_scan():
             vendor=dev["vendor"],
             device_type=dev["device_type"],
             is_hotspot_client=0,
-            is_active=dev["is_active"]
+            is_active=1
         )
     return {"status": "scan_complete", "devices_found": len(discovered), "devices": discovered}
 
 
-@app.post("/api/simulate")
-def simulate_traffic_burst():
-    devices = get_devices_with_usage("30days")
-    if devices:
-        import random
-        for dev in devices:
-            down_burst = random.randint(1500000, 8500000)
-            up_burst = random.randint(500000, 2500000)
-            log_traffic(dev["mac"], dev["ip"], down_burst, up_burst, is_hotspot=0)
-    return {"status": "simulated_burst_logged", "devices_affected": len(devices)}
-
-
 @app.post("/api/hotspot/open-settings")
 def open_windows_hotspot_settings():
-    """Opens Windows Mobile Hotspot settings page on the host machine."""
     try:
         subprocess.run(["cmd", "/c", "start", "ms-settings:network-mobilehotspot"], shell=True)
         return {"status": "opened_settings"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-
-
-@app.post("/api/hotspot/simulate-session")
-def simulate_hotspot_session():
-    """Generates an active or completed hotspot test session for immediate demonstration."""
-    import random
-    from datetime import datetime, timedelta
-    start_or_update_hotspot_session(
-        is_on=True, 
-        current_clients=random.randint(2, 4), 
-        down_delta=random.randint(45000000, 150000000), 
-        up_delta=random.randint(12000000, 45000000)
-    )
-    return {"status": "hotspot_session_updated"}
 
 
 if os.path.exists(FRONTEND_DIR):

@@ -11,7 +11,7 @@ let totalNetworkBytes = 0;
 document.addEventListener('DOMContentLoaded', () => {
   setupFilterPills();
   loadAllData();
-  // Live dynamic polling every 3 seconds
+  // Live dynamic polling every 3 seconds for instant Online/Offline status updates
   setInterval(loadAllData, 3000);
   // Live speedometer polling every 1.5 seconds
   setInterval(fetchLiveSpeed, 1500);
@@ -77,6 +77,7 @@ function switchTab(tabId) {
 
   const clickedBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => 
     (tabId === 'devices-tab' && b.innerText.includes('Connected Devices')) ||
+    (tabId === 'router-tab' && b.innerText.includes('Router Administration')) ||
     (tabId === 'hotspot-tab' && b.innerText.includes('Special Hotspot'))
   );
   if (clickedBtn) clickedBtn.classList.add('active');
@@ -135,6 +136,12 @@ async function fetchNetworkInfo() {
       hsText.textContent = 'OFF';
       hsText.style.color = 'var(--text-muted)';
     }
+
+    const rText = document.getElementById('router-status-text');
+    if (data.router && data.router.authenticated) {
+      rText.textContent = 'Huawei (Admin Connected)';
+      rText.style.color = '#34d399';
+    }
   } catch (err) {
     console.warn('Network info error:', err);
   }
@@ -152,8 +159,8 @@ async function fetchSummary() {
     document.getElementById('val-total-down').textContent = formatBytes(data.total_download_bytes);
     document.getElementById('val-total-up').textContent = formatBytes(data.total_upload_bytes);
 
-    document.getElementById('val-active-devices').textContent = `${data.active_devices} Active`;
-    document.getElementById('val-total-devices').textContent = `Total Discovered: ${data.total_devices}`;
+    document.getElementById('val-active-devices').textContent = `${data.active_devices} Online`;
+    document.getElementById('val-total-devices').textContent = `${data.total_devices} total known devices`;
 
     document.getElementById('val-hotspot-time').textContent = formatDuration(data.hotspot_total_seconds);
     document.getElementById('val-hotspot-sessions').textContent = `Sessions: ${data.hotspot_sessions_count} logged`;
@@ -195,7 +202,8 @@ function renderDevicesTable(devices) {
   const countLabel = document.getElementById('devices-count-label');
 
   if (countLabel) {
-    countLabel.textContent = `Showing ${devices.length} of ${allDevices.length} discovered devices`;
+    const onlineCount = devices.filter(d => d.is_active).length;
+    countLabel.textContent = `Showing ${devices.length} devices (${onlineCount} currently Online)`;
   }
 
   if (!devices || devices.length === 0) {
@@ -219,16 +227,19 @@ function renderDevicesTable(devices) {
                        hostname.includes('Router') ? '📡' :
                        dev.device_type.includes('Mobile') ? '📱' : '💻';
 
+    // DYNAMIC LIVE STATUS: If is_active is 1, show green Online. If 0, show gray Offline!
     const statusBadge = dev.is_active 
       ? `<span class="badge-online"><span class="pulse-dot"></span> Online</span>`
-      : `<span class="badge-offline">Last Seen</span>`;
+      : `<span class="badge-offline" style="opacity: 0.65;">⚪ Offline</span>`;
+
+    const rowOpacity = dev.is_active ? '1.0' : '0.75';
 
     const hotspotPill = dev.is_hotspot_client 
       ? `<span class="hotspot-tag">🔥 Hotspot</span>`
       : '';
 
     html += `
-      <tr>
+      <tr style="opacity: ${rowOpacity};">
         <td>
           <div style="font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.45rem;">
             <span>${deviceIcon}</span>
@@ -348,6 +359,30 @@ async function openHotspotSettings() {
     await fetch('/api/hotspot/open-settings', { method: 'POST' });
   } catch (err) {
     console.error('Open settings error:', err);
+  }
+}
+
+async function connectToRouter() {
+  const user = document.getElementById('router-username').value;
+  const pass = document.getElementById('router-password').value;
+  const statusBox = document.getElementById('router-connect-status');
+  statusBox.style.display = 'block';
+  statusBox.innerHTML = '<span style="color: #38bdf8;">Authenticating with Huawei Router at 192.168.18.1...</span>';
+
+  try {
+    const res = await fetch('/api/router/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pass })
+    });
+    const data = await res.json();
+    if (data.success) {
+      statusBox.innerHTML = `<span style="color: #34d399; font-weight: 600;">✓ ${escapeHtml(data.message)}</span>`;
+    } else {
+      statusBox.innerHTML = `<span style="color: #ef4444; font-weight: 600;">✗ ${escapeHtml(data.message)}</span>`;
+    }
+  } catch (err) {
+    statusBox.innerHTML = `<span style="color: #ef4444;">Error connecting to router: ${err.message}</span>`;
   }
 }
 

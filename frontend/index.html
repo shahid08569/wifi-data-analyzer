@@ -39,6 +39,11 @@
           <span class="badge-label">Wi-Fi:</span>
           <strong id="current-ssid">Connected</strong>
         </div>
+        <div class="status-badge" id="router-badge">
+          <span class="router-dot pulse-dot"></span>
+          <span class="badge-label">Router:</span>
+          <strong id="router-status-text">Huawei 192.168.18.1</strong>
+        </div>
         <div class="status-badge" id="hotspot-badge">
           <span class="hotspot-dot" id="hotspot-dot"></span>
           <span class="badge-label">Hotspot:</span>
@@ -105,7 +110,7 @@
 
       <div class="metric-card card-emerald">
         <div class="metric-top">
-          <span class="metric-title">Active Devices</span>
+          <span class="metric-title">Online Devices</span>
           <div class="metric-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
@@ -116,7 +121,7 @@
         </div>
         <div class="metric-value" id="val-active-devices">0 Active</div>
         <div class="metric-footer">
-          <span id="val-total-devices">Subnet hosts discovered</span>
+          <span id="val-total-devices">0 Online right now</span>
         </div>
       </div>
 
@@ -161,7 +166,7 @@
 
     <!-- Main Content Area -->
     <main class="main-content">
-      <!-- Tabs for Devices vs Hotspot Logs -->
+      <!-- Tabs for Devices vs Hotspot vs Router Admin -->
       <div class="tabs-header">
         <button class="tab-btn active" onclick="switchTab('devices-tab')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -169,6 +174,13 @@
             <line x1="12" y1="18" x2="12.01" y2="18"></line>
           </svg>
           Connected Devices Bandwidth
+        </button>
+        <button class="tab-btn" onclick="switchTab('router-tab')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          Router Administration (Huawei Gateway)
         </button>
         <button class="tab-btn" onclick="switchTab('hotspot-tab')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -201,7 +213,7 @@
                 <th>IP Address</th>
                 <th>MAC Address</th>
                 <th>Hardware / Vendor</th>
-                <th>Status</th>
+                <th>Live Status</th>
                 <th>Download</th>
                 <th>Upload</th>
                 <th>Total Data Used</th>
@@ -217,7 +229,51 @@
         </div>
       </div>
 
-      <!-- Tab 2: Hotspot Details & Session Log -->
+      <!-- Tab 2: Router Administration (Huawei Gateway) -->
+      <div class="tab-pane" id="router-tab" style="display: none;">
+        <div class="hotspot-overview-card">
+          <div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 0.5rem;">
+              <span>📡</span>
+              <span>Huawei Wi-Fi Router Gateway (192.168.18.1)</span>
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">
+              Direct hardware integration with your Huawei GPON EchoLife / OptiXstar router.
+            </p>
+          </div>
+          <div style="font-size: 0.85rem; color: #34d399; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.4rem 0.8rem; border-radius: 6px;">
+            Port 80 HTTP Gateway: Reachable
+          </div>
+        </div>
+
+        <div class="table-container" style="margin-top: 1.25rem; padding: 1.5rem;">
+          <h4 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem;">Router Administration Access</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+            Enter your Huawei Router Admin credentials to authenticate and fetch the router's internal DHCP device table and bandwidth logs directly:
+          </p>
+
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+            <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Router Username:</label>
+              <input type="text" id="router-username" value="admin" style="background: var(--bg-dark); border: 1px solid var(--border); color: #fff; padding: 0.5rem 0.8rem; border-radius: 6px; outline: none; min-width: 200px;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Router Password:</label>
+              <input type="password" id="router-password" placeholder="Enter router password" style="background: var(--bg-dark); border: 1px solid var(--border); color: #fff; padding: 0.5rem 0.8rem; border-radius: 6px; outline: none; min-width: 220px;">
+            </div>
+            <button class="btn btn-primary" onclick="connectToRouter()">
+              Connect to Huawei Router
+            </button>
+            <a href="http://192.168.18.1" target="_blank" class="btn btn-secondary">
+              Open Router Web Portal ↗
+            </a>
+          </div>
+
+          <div id="router-connect-status" style="margin-top: 1rem; font-size: 0.85rem; display: none;"></div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Hotspot Details & Session Log -->
       <div class="tab-pane" id="hotspot-tab" style="display: none;">
         <div class="hotspot-overview-card">
           <div class="hotspot-live-status">
