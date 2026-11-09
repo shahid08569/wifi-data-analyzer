@@ -88,6 +88,19 @@ body {
   flex-wrap: wrap;
 }
 
+.live-speed-badge {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: var(--primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+}
+
+.speed-divider {
+  color: var(--border);
+  margin: 0 0.25rem;
+}
+
 .status-badge {
   background-color: var(--bg-card);
   border: 1px solid var(--border);

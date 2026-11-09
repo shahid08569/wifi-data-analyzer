@@ -163,19 +163,21 @@ def scan_devices() -> List[Dict[str, Any]]:
                 ip = item.get("IPAddress", "").strip()
                 mac = item.get("LinkLayerAddress", "").strip().upper()
                 state = item.get("State", "")
-                if ip and mac and mac != "FF-FF-FF-FF-FF-FF":
+                if ip and mac and mac not in ["FF-FF-FF-FF-FF-FF", "00-00-00-00-00-00"]:
                     if mac not in seen_macs:
                         seen_macs.add(mac)
                         vendor = lookup_vendor(mac)
                         hostname = resolve_hostname(ip)
                         dev_type = guess_device_type(vendor, hostname)
+                        # State in Windows: 3=Reachable, 4=Incomplete, 5=Stale, 6=Permanent
+                        is_active = 1 if str(state).lower() in ["3", "5", "6", "reachable", "permanent", "stale"] else 0
                         devices.append({
                             "ip": ip,
                             "mac": mac,
                             "vendor": vendor,
                             "hostname": hostname or (f"Gateway ({vendor})" if ip == net_info.get("gateway") else f"Device-{ip.split('.')[-1]}"),
                             "device_type": "Gateway Router" if ip == net_info.get("gateway") else dev_type,
-                            "is_active": 1 if state in ["Reachable", "Permanent", "Stale"] else 0
+                            "is_active": is_active
                         })
     except Exception:
         pass

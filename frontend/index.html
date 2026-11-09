@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,26 +24,34 @@
         </div>
         <div class="brand-text">
           <h1>WiFi & Hotspot Data Analyzer</h1>
-          <p class="subtitle">Real-time & Historical Data Bandwidth Monitor</p>
+          <p class="subtitle">Live & Historical Bandwidth Monitor per Device</p>
         </div>
       </div>
 
       <div class="header-status">
+        <div class="status-badge live-speed-badge">
+          <span class="speed-indicator-down">⬇️ <strong id="live-speed-down">0.0 KB/s</strong></span>
+          <span class="speed-divider">|</span>
+          <span class="speed-indicator-up">⬆️ <strong id="live-speed-up">0.0 KB/s</strong></span>
+        </div>
         <div class="status-badge" id="wifi-badge">
           <span class="pulse-dot"></span>
           <span class="badge-label">Wi-Fi:</span>
-          <strong id="current-ssid">Connecting...</strong>
+          <strong id="current-ssid">Scanning...</strong>
         </div>
         <div class="status-badge" id="hotspot-badge">
           <span class="hotspot-dot" id="hotspot-dot"></span>
           <span class="badge-label">Hotspot:</span>
-          <strong id="hotspot-status-text">Checking...</strong>
+          <strong id="hotspot-status-text">OFF</strong>
         </div>
+        <button class="btn btn-secondary" onclick="simulateTestBurst()" title="Simulate a live data transfer burst">
+          ⚡ Test Burst
+        </button>
         <button class="btn btn-primary" id="btn-scan" onclick="triggerManualScan()">
           <svg class="spin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
           </svg>
-          <span>Scan Network</span>
+          <span>Refresh Scan</span>
         </button>
       </div>
     </header>
@@ -55,12 +63,12 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
           </svg>
-          Data Filter (समय फ़िल्टर):
+          Time Range Filter:
         </span>
         <div class="filter-pills" id="filter-pills">
-          <button class="pill" data-filter="today">Today (पिछले 24 घंटे)</button>
+          <button class="pill" data-filter="today">Today (Past 24 Hours)</button>
           <button class="pill" data-filter="7days">Last 7 Days</button>
-          <button class="pill active" data-filter="30days">Past Month (पिछला महीना / 30 दिन)</button>
+          <button class="pill active" data-filter="30days">Past Month (Last 30 Days)</button>
           <button class="pill" data-filter="all">All Time</button>
           <button class="pill" data-filter="custom">Custom Range</button>
         </div>
@@ -83,7 +91,7 @@
     <section class="metrics-grid">
       <div class="metric-card card-blue">
         <div class="metric-top">
-          <span class="metric-title">Total Network Usage</span>
+          <span class="metric-title">Total Network Data</span>
           <div class="metric-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -99,7 +107,7 @@
 
       <div class="metric-card card-emerald">
         <div class="metric-top">
-          <span class="metric-title">Connected Devices</span>
+          <span class="metric-title">Active Devices</span>
           <div class="metric-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
@@ -148,7 +156,7 @@
         </div>
         <div class="metric-value" id="val-hotspot-data">0 MB</div>
         <div class="metric-footer">
-          <span>Hotspot clients data consumption</span>
+          <span>Data consumed via Mobile Hotspot</span>
         </div>
       </div>
     </section>
@@ -162,13 +170,13 @@
             <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
             <line x1="12" y1="18" x2="12.01" y2="18"></line>
           </svg>
-          Device Data Consumption (डिवाइस डेटा उपयोग)
+          Connected Devices Bandwidth
         </button>
         <button class="tab-btn" onclick="switchTab('hotspot-tab')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
           </svg>
-          Special Hotspot Tracking & Sessions
+          Special Hotspot Sessions & History
         </button>
       </div>
 
@@ -184,22 +192,22 @@
               <input type="text" id="device-search" placeholder="Search by name, IP, MAC or vendor..." oninput="filterDevicesList()">
             </div>
             <div class="toolbar-info">
-              <span id="devices-count-label">Showing 0 devices</span>
+              <span id="devices-count-label">Loading devices...</span>
             </div>
           </div>
 
           <table class="data-table">
             <thead>
               <tr>
-                <th>Device</th>
+                <th>Device Name</th>
                 <th>IP Address</th>
                 <th>MAC Address</th>
                 <th>Manufacturer / Type</th>
                 <th>Status</th>
                 <th>Download</th>
                 <th>Upload</th>
-                <th>Total Data Used</th>
-                <th>Usage Share</th>
+                <th>Total Data</th>
+                <th>Traffic Share</th>
               </tr>
             </thead>
             <tbody id="devices-table-body">
@@ -229,7 +237,7 @@
 
         <div class="table-container" style="margin-top: 1.5rem;">
           <div class="table-toolbar">
-            <h3 style="font-size: 1.05rem; font-weight: 700;">Hotspot Sessions History (हॉटस्पॉट कब-कब और कितना चला)</h3>
+            <h3 style="font-size: 1.05rem; font-weight: 700;">Hotspot Sessions History Log</h3>
           </div>
           <table class="data-table">
             <thead>
@@ -237,16 +245,16 @@
                 <th>Session ID</th>
                 <th>Started At</th>
                 <th>Ended At</th>
-                <th>Duration (कितनी देर चला)</th>
+                <th>Active Duration</th>
                 <th>Total Data Used</th>
                 <th>Download / Upload</th>
-                <th>Max Clients</th>
+                <th>Connected Clients</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody id="hotspot-table-body">
               <tr>
-                <td colspan="8" class="loading-cell">Loading hotspot session history...</td>
+                <td colspan="8" class="loading-cell">No hotspot sessions recorded yet. Turn on Windows Mobile Hotspot to record.</td>
               </tr>
             </tbody>
           </table>
@@ -256,7 +264,7 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <p>WiFi & Hotspot Data Analyzer &bull; Running natively on Windows &bull; Data saved locally in SQLite</p>
+      <p>WiFi & Hotspot Data Analyzer &bull; Running natively on Windows &bull; Data stored in SQLite</p>
     </footer>
   </div>
 

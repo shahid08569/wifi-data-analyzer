@@ -1,5 +1,5 @@
 /**
- * WiFi & Hotspot Data Analyzer - Frontend Controller
+ * WiFi & Hotspot Data Analyzer - Frontend Controller (English)
  */
 
 let currentFilter = '30days';
@@ -11,8 +11,10 @@ let totalNetworkBytes = 0;
 document.addEventListener('DOMContentLoaded', () => {
   setupFilterPills();
   loadAllData();
-  // Auto-refresh every 5 seconds for live bandwidth & hotspot updates
-  setInterval(loadAllData, 5000);
+  // Poll data every 3 seconds for real-time live dynamic updates
+  setInterval(loadAllData, 3000);
+  // Poll live speed every 1.5 seconds
+  setInterval(fetchLiveSpeed, 1500);
 });
 
 function setupFilterPills() {
@@ -27,7 +29,6 @@ function setupFilterPills() {
 
       if (filter === 'custom') {
         customBox.style.display = 'flex';
-        // Set default dates if empty
         const today = new Date().toISOString().split('T')[0];
         if (!document.getElementById('date-to').value) {
           document.getElementById('date-to').value = today;
@@ -52,7 +53,7 @@ function applyCustomDateFilter() {
   const from = document.getElementById('date-from').value;
   const to = document.getElementById('date-to').value;
   if (!from || !to) {
-    alert('कृपया दोनों तारीखें (From और To) चुनें!');
+    alert('Please select both From and To dates.');
     return;
   }
   currentFilter = 'custom';
@@ -74,10 +75,9 @@ function switchTab(tabId) {
     activePane.classList.add('active');
   }
 
-  // Set active tab button
   const clickedBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => 
-    (tabId === 'devices-tab' && b.innerText.includes('Device Data')) ||
-    (tabId === 'hotspot-tab' && b.innerText.includes('Hotspot Tracking'))
+    (tabId === 'devices-tab' && b.innerText.includes('Connected Devices')) ||
+    (tabId === 'hotspot-tab' && b.innerText.includes('Special Hotspot'))
   );
   if (clickedBtn) clickedBtn.classList.add('active');
 }
@@ -99,24 +99,36 @@ function buildQueryString() {
   return url;
 }
 
+async function fetchLiveSpeed() {
+  try {
+    const res = await fetch('/api/speed');
+    if (!res.ok) return;
+    const data = await res.json();
+    const downElem = document.getElementById('live-speed-down');
+    const upElem = document.getElementById('live-speed-up');
+    if (downElem && upElem) {
+      downElem.textContent = `${data.down_kbps || 0} KB/s`;
+      upElem.textContent = `${data.up_kbps || 0} KB/s`;
+    }
+  } catch (err) {}
+}
+
 async function fetchNetworkInfo() {
   try {
     const res = await fetch('/api/network-info');
     if (!res.ok) return;
     const data = await res.json();
     
-    // SSID
     const ssidElem = document.getElementById('current-ssid');
     if (ssidElem) {
       ssidElem.textContent = data.network.ssid || 'Connected';
     }
 
-    // Hotspot status pill
     const hsDot = document.getElementById('hotspot-dot');
     const hsText = document.getElementById('hotspot-status-text');
     if (data.hotspot && data.hotspot.is_active) {
       hsDot.className = 'hotspot-dot active';
-      hsText.textContent = `ON (${data.hotspot.client_count} devices)`;
+      hsText.textContent = `ON (${data.hotspot.client_count} client${data.hotspot.client_count === 1 ? '' : 's'})`;
       hsText.style.color = '#fbbf24';
     } else {
       hsDot.className = 'hotspot-dot';
@@ -136,20 +148,16 @@ async function fetchSummary() {
 
     totalNetworkBytes = data.total_bytes || 0;
 
-    // Total traffic
     document.getElementById('val-total-traffic').textContent = formatBytes(data.total_bytes);
     document.getElementById('val-total-down').textContent = formatBytes(data.total_download_bytes);
     document.getElementById('val-total-up').textContent = formatBytes(data.total_upload_bytes);
 
-    // Active devices
     document.getElementById('val-active-devices').textContent = `${data.active_devices} Active`;
     document.getElementById('val-total-devices').textContent = `Total Discovered: ${data.total_devices}`;
 
-    // Hotspot duration
     document.getElementById('val-hotspot-time').textContent = formatDuration(data.hotspot_total_seconds);
-    document.getElementById('val-hotspot-sessions').textContent = `Sessions: ${data.hotspot_sessions_count} recorded`;
+    document.getElementById('val-hotspot-sessions').textContent = `Sessions: ${data.hotspot_sessions_count} logged`;
 
-    // Hotspot data
     document.getElementById('val-hotspot-data').textContent = formatBytes(data.hotspot_traffic_bytes);
   } catch (err) {
     console.warn('Summary error:', err);
@@ -191,7 +199,7 @@ function renderDevicesTable(devices) {
   }
 
   if (!devices || devices.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="loading-cell">No devices found. Turn on network scanning or connect devices.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="loading-cell">No devices found. Click "Refresh Scan" above to discover active network devices.</td></tr>`;
     return;
   }
 
@@ -208,7 +216,7 @@ function renderDevicesTable(devices) {
 
     const statusBadge = dev.is_active 
       ? `<span class="badge-online"><span class="pulse-dot"></span> Online</span>`
-      : `<span class="badge-offline">Last seen</span>`;
+      : `<span class="badge-offline">Last Seen</span>`;
 
     const hotspotPill = dev.is_hotspot_client 
       ? `<span class="hotspot-tag">🔥 Hotspot</span>`
@@ -259,7 +267,6 @@ async function fetchHotspot() {
     const curr = data.current || {};
     const sessions = data.sessions || [];
 
-    // Live status
     const circle = document.getElementById('hs-status-circle');
     const title = document.getElementById('hs-live-title');
     const sub = document.getElementById('hs-live-subtitle');
@@ -268,16 +275,16 @@ async function fetchHotspot() {
 
     if (curr.is_active) {
       circle.className = 'hs-indicator on';
-      title.textContent = 'Mobile Hotspot: ACTIVE (चालू है)';
+      title.textContent = 'Mobile Hotspot: ACTIVE';
       title.style.color = '#fbbf24';
-      sub.textContent = `Connected mobile & PC devices are currently using this laptop's hotspot.`;
+      sub.textContent = 'Devices are actively connected and routing traffic through this laptop.';
       clients.textContent = curr.client_count || 0;
-      adapter.textContent = curr.adapter_name || 'Virtual Direct';
+      adapter.textContent = curr.adapter_name || 'Wi-Fi Direct Virtual';
     } else {
       circle.className = 'hs-indicator';
-      title.textContent = 'Mobile Hotspot: Inactive (बंद है)';
+      title.textContent = 'Mobile Hotspot: Inactive';
       title.style.color = 'var(--text-main)';
-      sub.textContent = 'Windows Mobile Hotspot is currently turned off in Settings.';
+      sub.textContent = 'Windows Mobile Hotspot is currently turned off in Windows Settings.';
       clients.textContent = '0';
       adapter.textContent = 'None';
     }
@@ -291,7 +298,7 @@ async function fetchHotspot() {
 function renderHotspotSessions(sessions) {
   const tbody = document.getElementById('hotspot-table-body');
   if (!sessions || sessions.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="loading-cell">No hotspot sessions recorded yet. Turn on Windows Mobile Hotspot to record.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="loading-cell">No hotspot sessions recorded yet. Turn on Windows Mobile Hotspot to record sessions.</td></tr>`;
     return;
   }
 
@@ -300,7 +307,7 @@ function renderHotspotSessions(sessions) {
     const startTime = new Date(s.started_at).toLocaleString();
     const endTime = s.ended_at ? new Date(s.ended_at).toLocaleString() : 'In Progress';
     const statusBadge = s.status === 'active' 
-      ? `<span class="badge-online">Active Now</span>`
+      ? `<span class="badge-online">Active</span>`
       : `<span class="badge-offline">Completed</span>`;
 
     html += `
@@ -337,7 +344,15 @@ async function triggerManualScan() {
   }
 }
 
-// Helpers
+async function simulateTestBurst() {
+  try {
+    await fetch('/api/simulate', { method: 'POST' });
+    await loadAllData();
+  } catch (err) {
+    console.error('Simulate error:', err);
+  }
+}
+
 function formatBytes(bytes) {
   if (!bytes || bytes <= 0) return '0 MB';
   const k = 1024;
